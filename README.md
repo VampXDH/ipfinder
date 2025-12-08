@@ -6,4 +6,8 @@
 We built it in compliance with all applicable passive-source licenses and usage limitations. Its passive model ensures speed, efficiency, and confidentiality, making it a valuable asset for penetration testers and bug bounty hunters.
 
 
----
+# Features
+<h1 align="left">
+  <img src="static/ipfinder-run.png" alt="ipfinder" width="700px"></a>
+  <br>
+</h1>
