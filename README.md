@@ -22,7 +22,7 @@ ipfinder -h
 This will display help for the tool. Here are all the switches it supports.
 
 ```yaml
-Usage: reverseip [options]
+Usage: ipfinder [options]
 
 Options:
   -d string      Single IP address to scan
