@@ -35,10 +35,10 @@ Options:
   -h, -help      Show this help message
 
 Examples:
-  reverseip -d 8.8.8.8
-  reverseip -l ips.txt -t 100 -o results.txt
-  reverseip -d 1.1.1.1 -v
-  reverseip -l ips.txt -silent
+  ipfinder -d 8.8.8.8
+  ipfinder -l ips.txt -t 100 -o results.txt
+  ipfinder -d 1.1.1.1 -v
+  ipfinder -l ips.txt -silent
 ```
 
 # Installation
