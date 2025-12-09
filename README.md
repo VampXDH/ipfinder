@@ -11,3 +11,37 @@ We built it in compliance with all applicable passive-source licenses and usage 
   <img src="static/ipfinder-run.png" alt="ipfinder" width="700px"></a>
   <br>
 </h1>
+
+
+# Usage
+
+```sh
+ipfinder -h
+```
+
+This will display help for the tool. Here are all the switches it supports.
+
+```yaml
+Usage: reverseip [options]
+
+Options:
+  -d string      Single IP address to scan
+  -l string      File containing list of IPs
+  -o string      Output file (default: results/domains.txt)
+  -t int         Number of concurrent threads (default: 30)
+  -v             Verbose output
+  -silent        Silent mode (only shows count)
+  -no-color      Disable color output
+  -h, -help      Show this help message
+
+Examples:
+  reverseip -d 8.8.8.8
+  reverseip -l ips.txt -t 100 -o results.txt
+  reverseip -d 1.1.1.1 -v
+  reverseip -l ips.txt -silent
+```
+
+# Installation
+```sh
+go install -v github.com/VampXDH/ipfinder/cmd/ipfinder@latest
+```
