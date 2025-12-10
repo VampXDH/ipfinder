@@ -2,17 +2,29 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
+	"os/signal"
 	"strings"
-	"time"
+	"syscall"
 
+	"github.com/VampXDH/ipfinder/internal/common"
 	"github.com/VampXDH/ipfinder/internal/scanner"
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-signalCh
+		cancel()
+	}()
+
 	var (
 		singleIP   string
 		ipFile     string
@@ -22,9 +34,6 @@ func main() {
 		silent     bool
 		noColor    bool
 	)
-
-	// Seed random (untuk User-Agent & delay)
-	rand.Seed(time.Now().UnixNano())
 
 	// Parse flags
 	flag.StringVar(&singleIP, "d", "", "Single IP address to scan")
@@ -43,9 +52,9 @@ func main() {
 /_/ .__/_//_/_//_/\_,_/\__/_/   
   /_/                           
 
-Reverse IP Finder v3.0 - All Sources
+IP Finder v3.0 - All Sources
 
-Usage: reverseip [options]
+Usage: ipfinder [options]
 
 Options:
   -d string      Single IP address to scan
@@ -58,10 +67,10 @@ Options:
   -h, -help      Show this help message
 
 Examples:
-  reverseip -d 8.8.8.8
-  reverseip -l ips.txt -t 100 -o results.txt
-  reverseip -d 1.1.1.1 -v
-  reverseip -l ips.txt -silent`)
+  ipfinder -d 8.8.8.8
+  ipfinder -l ips.txt -t 100 -o results.txt
+  ipfinder -d 1.1.1.1 -v
+  ipfinder -l ips.txt -silent`)
 	}
 
 	flag.Parse()
@@ -85,7 +94,16 @@ Examples:
 	// Load IPs
 	var ipList []string
 	if singleIP != "" {
-		ipList = []string{strings.TrimSpace(singleIP)}
+		ip := strings.TrimSpace(singleIP)
+		if !common.IsValidIP(ip) {
+			if noColor {
+				fmt.Printf("[ERROR] Invalid IP address: %s\n", ip)
+			} else {
+				fmt.Printf("\033[91m[ERROR] Invalid IP address: %s\033[0m\n", ip)
+			}
+			os.Exit(1)
+		}
+		ipList = []string{ip}
 	} else {
 		f, err := os.Open(ipFile)
 		if err != nil {
@@ -105,6 +123,14 @@ Examples:
 				continue
 			}
 			if strings.HasPrefix(ip, "#") || strings.HasPrefix(ip, "//") {
+				continue
+			}
+			if !common.IsValidIP(ip) {
+				if noColor {
+					fmt.Printf("[WARNING] Invalid IP address: %s\n", ip)
+				} else {
+					fmt.Printf("\033[93m[WARNING] Invalid IP address: %s\033[0m\n", ip)
+				}
 				continue
 			}
 			ipList = append(ipList, ip)
@@ -129,14 +155,14 @@ Examples:
 /_/ .__/_//_/_//_/\_,_/\__/_/   
   /_/                           `)
 		if noColor {
-			fmt.Println("\nReverse IP Finder v3.0 - All Sources Enabled\n")
+			fmt.Println("\nIP Finder v3.0 - All Sources Enabled\n")
 		} else {
-			fmt.Println("\n\033[92mReverse IP Finder v3.0 - All Sources Enabled\033[0m\n")
+			fmt.Println("\n\033[92mIP Finder v3.0 - All Sources Enabled\033[0m\n")
 		}
 	}
 
 	// Run scanner
-	s := scanner.NewScanner(ipList, outputFile, threads, verbose, silent, noColor)
+	s := scanner.NewScanner(ctx, ipList, outputFile, threads, verbose, silent, noColor)
 	if err := s.Run(); err != nil {
 		if noColor {
 			fmt.Printf("[ERROR] Scanner error: %v\n", err)
