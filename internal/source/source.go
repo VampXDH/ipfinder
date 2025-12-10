@@ -1,6 +1,7 @@
 package source
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,23 +84,26 @@ func (w WebScan) Query(ip string, client *http.Client) ([]string, error) {
 		return nil, fmt.Errorf("status %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-
-	var results []map[string]interface{}
-	if err := json.Unmarshal(body, &results); err == nil {
-		var domains []string
-		for _, item := range results {
-			if domain, ok := item["domain"].(string); ok {
-				domain = common.NormalizeDomain(domain)
-				if domain != "" {
-					domains = append(domains, domain)
-				}
-			}
-		}
-		return common.UniqueStrings(domains), nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
 
-	return []string{}, nil
+	var results []map[string]interface{}
+	if err := json.Unmarshal(body, &results); err != nil {
+		return nil, err
+	}
+
+	var domains []string
+	for _, item := range results {
+		if domain, ok := item["domain"].(string); ok {
+			domain = common.NormalizeDomain(domain)
+			if domain != "" {
+				domains = append(domains, domain)
+			}
+		}
+	}
+	return common.UniqueStrings(domains), nil
 }
 
 // ===================== TNTcode =====================
@@ -154,7 +158,7 @@ func (n NetworksDB) Name() string { return "networksdb" }
 func (n NetworksDB) Query(ip string, client *http.Client) ([]string, error) {
 	url := fmt.Sprintf("https://networksdb.io/domains-on-ip/%s", ip)
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:108.0) Gecko/20100101 Firefox/108.0")
+	req.Header.Set("User-Agent", common.GetRandomUserAgent())
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
 	resp, err := client.Do(req)
@@ -245,7 +249,15 @@ func (t THCOrg) Query(ip string, client *http.Client) ([]string, error) {
 	nextPage := baseURL
 	pageCount := 0
 
+	timeout := time.After(60 * time.Second)
+
 	for nextPage != "" && pageCount < 20 {
+		select {
+		case <-timeout:
+			return common.UniqueStrings(allDomains), nil
+		default:
+		}
+
 		req, err := http.NewRequest("GET", nextPage, nil)
 		if err != nil {
 			return allDomains, err
@@ -282,10 +294,9 @@ func parseTHCResponse(body string) ([]string, string) {
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 	cleaned := ansiRegex.ReplaceAllString(body, "")
 
-	lines := strings.Split(cleaned, "\n")
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	scanner := bufio.NewScanner(strings.NewReader(cleaned))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
 
 		if strings.Contains(line, "Next Page:") {
 			parts := strings.SplitN(line, "Next Page:", 2)
@@ -316,13 +327,13 @@ func parseTHCResponse(body string) ([]string, string) {
 //
 // 1. Buat struct baru, contoh:
 /*
-    type MyAPI struct{}
+   type MyAPI struct{}
 
-    func (m MyAPI) Name() string { return "myapi" }
+   func (m MyAPI) Name() string { return "myapi" }
 
-    func (m MyAPI) Query(ip string, client *http.Client) ([]string, error) {
-        // implement logic call API
-    }
+   func (m MyAPI) Query(ip string, client *http.Client) ([]string, error) {
+       // implement logic call API
+   }
 */
 //
 // 2. Tambahkan ke slice `sources` di `internal/scanner/scanner.go`:
