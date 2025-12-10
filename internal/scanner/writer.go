@@ -1,55 +1,63 @@
-// internal/scanner/writer.go
 package scanner
 
 import (
-    "os"
-    "sync"
+	"bufio"
+	"os"
+	"sync"
+	"sync/atomic"
 )
 
 type OutputWriter struct {
-    file     *os.File
-    mu       sync.Mutex
-    seen     map[string]bool
-    filename string
-    count    int
+	file     *os.File
+	writer   *bufio.Writer
+	mu       sync.Mutex
+	seen     map[string]bool
+	filename string
+	count    uint64
 }
 
-func NewOutputWriter(filename string) *OutputWriter {
-    // Create directory if needed
-    _ = os.MkdirAll("results", 0755)
+func NewOutputWriter(filename string) (*OutputWriter, error) {
+	_ = os.MkdirAll("results", 0755)
 
-    file, err := os.Create(filename)
-    if err != nil {
-        panic(err)
-    }
+	file, err := os.Create(filename)
+	if err != nil {
+		return nil, err
+	}
 
-    return &OutputWriter{
-        file:     file,
-        seen:     make(map[string]bool),
-        filename: filename,
-        count:    0,
-    }
+	writer := bufio.NewWriter(file)
+
+	return &OutputWriter{
+		file:     file,
+		writer:   writer,
+		seen:     make(map[string]bool),
+		filename: filename,
+		count:    0,
+	}, nil
 }
 
-func (w *OutputWriter) Write(domain string) {
-    w.mu.Lock()
-    defer w.mu.Unlock()
+func (w *OutputWriter) Write(domain string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
-    if w.seen[domain] {
-        return
-    }
+	if w.seen[domain] {
+		return nil
+	}
 
-    w.seen[domain] = true
-    w.count++
-    w.file.WriteString(domain + "\n")
+	_, err := w.writer.WriteString(domain + "\n")
+	if err != nil {
+		return err
+	}
+
+	w.seen[domain] = true
+	atomic.AddUint64(&w.count, 1)
+	return nil
 }
 
 func (w *OutputWriter) Close() {
-    w.file.Close()
+	w.writer.Flush()
+	w.file.Close()
 }
 
 func (w *OutputWriter) Count() int {
-    w.mu.Lock()
-    defer w.mu.Unlock()
-    return w.count
+	return int(atomic.LoadUint64(&w.count))
 }
