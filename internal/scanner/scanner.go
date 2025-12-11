@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -23,9 +24,10 @@ type Scanner struct {
 	log       *logger.Logger
 	sources   []source.Source
 	startTime time.Time
+	ctx       context.Context
 }
 
-func NewScanner(ipList []string, outputFile string, threads int, verbose, silent, noColor bool) *Scanner {
+func NewScanner(ctx context.Context, ipList []string, outputFile string, threads int, verbose, silent, noColor bool) *Scanner {
 	return &Scanner{
 		ipList:     ipList,
 		outputFile: outputFile,
@@ -54,6 +56,7 @@ func NewScanner(ipList []string, outputFile string, threads int, verbose, silent
 			source.Chaxunle{},
 			source.THCOrg{},
 		},
+		ctx: ctx,
 	}
 }
 
@@ -67,13 +70,24 @@ func (s *Scanner) Run() error {
 	s.log.Info("Sources: rapiddns, tntcode, webscan, networksdb, chaxunle, thc-org")
 	s.log.Line()
 
-	s.writer = NewOutputWriter(s.outputFile)
+	writer, err := NewOutputWriter(s.outputFile)
+	if err != nil {
+		return err
+	}
+	s.writer = writer
 	defer s.writer.Close()
 
 	sem := make(chan struct{}, s.threads)
 	var wg sync.WaitGroup
 
 	for _, ip := range s.ipList {
+		select {
+		case <-s.ctx.Done():
+			s.log.Info("Cancelled by user")
+			return s.ctx.Err()
+		default:
+		}
+
 		ip := ip
 		wg.Add(1)
 		go func() {
@@ -95,7 +109,13 @@ func (s *Scanner) processIP(ip string) {
 	ipDomains := 0
 
 	for _, src := range s.sources {
-		// Delay antar source biar gak terlalu agresif
+		select {
+		case <-s.ctx.Done():
+			s.log.Info("Cancelled by user")
+			return
+		default:
+		}
+
 		common.RandomSleep(1000, 3000)
 
 		s.log.Verbosef("Querying %s with %s", ip, src.Name())
@@ -111,7 +131,10 @@ func (s *Scanner) processIP(ip string) {
 			ipDomains += count
 
 			for _, d := range domains {
-				s.writer.Write(d)
+				err := s.writer.Write(d)
+				if err != nil {
+					s.log.Warning("Failed to write domain %s: %v", d, err)
+				}
 			}
 
 			s.log.Success(src.Name(), ip, count)

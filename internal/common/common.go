@@ -1,11 +1,21 @@
 package common
 
 import (
+	"fmt"
 	"math/rand"
 	"regexp"
 	"strings"
 	"time"
 )
+
+var (
+	reProto = regexp.MustCompile(`^https?://`)
+	reBad   = regexp.MustCompile(`[^a-z0-9.-]`)
+)
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // ===================== USER AGENT CONFIG =====================
 
@@ -81,15 +91,9 @@ func NormalizeDomain(raw string) string {
 		return ""
 	}
 
-	// Remove protocol
-	reProto := regexp.MustCompile(`^https?://`)
 	raw = reProto.ReplaceAllString(raw, "")
-
-	// Remove path & port
 	raw = strings.Split(raw, "/")[0]
 	raw = strings.Split(raw, ":")[0]
-
-	// Remove www
 	raw = strings.TrimPrefix(raw, "www.")
 	raw = strings.ToLower(strings.TrimSpace(raw))
 
@@ -97,10 +101,7 @@ func NormalizeDomain(raw string) string {
 		return ""
 	}
 
-	// Remove invalid chars
-	reBad := regexp.MustCompile(`[^a-z0-9.-]`)
 	raw = reBad.ReplaceAllString(raw, "")
-
 	return raw
 }
 
@@ -114,4 +115,36 @@ func UniqueStrings(slice []string) []string {
 		}
 	}
 	return result
+}
+
+func IsValidIP(ip string) bool {
+	if ip == "" || strings.ContainsAny(ip, " \t\n") {
+		return false
+	}
+	if strings.Count(ip, ".") == 3 {
+		parts := strings.Split(ip, ".")
+		if len(parts) != 4 {
+			return false
+		}
+		for _, part := range parts {
+			if part == "" || len(part) > 3 {
+				return false
+			}
+			for _, c := range part {
+				if c < '0' || c > '9' {
+					return false
+				}
+			}
+			num := 0
+			fmt.Sscanf(part, "%d", &num)
+			if num < 0 || num > 255 {
+				return false
+			}
+		}
+		return true
+	}
+	if strings.Contains(ip, ":") {
+		return true
+	}
+	return false
 }
