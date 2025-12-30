@@ -17,6 +17,8 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// ===================== USER AGENT CONFIG =====================
+
 var browsers = []string{
 	"Chrome",
 	"Firefox",
@@ -51,6 +53,8 @@ var firefoxVersions = []string{
 	"108.0", "107.0", "106.0", "105.0", "104.0", "103.0",
 	"102.0", "101.0",
 }
+
+// ===================== HELPERS =====================
 
 func GetRandomUserAgent() string {
 	browser := browsers[rand.Intn(len(browsers))]
