@@ -35,22 +35,22 @@ func NewOutputWriter(filename string) (*OutputWriter, error) {
 	}, nil
 }
 
-func (w *OutputWriter) Write(domain string) error {
+func (w *OutputWriter) Write(domain string) (bool, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if w.seen[domain] {
-		return nil
+		return false, nil
 	}
 
 	_, err := w.writer.WriteString(domain + "\n")
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	w.seen[domain] = true
 	atomic.AddUint64(&w.count, 1)
-	return nil
+	return true, nil
 }
 
 func (w *OutputWriter) Close() {

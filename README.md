@@ -211,7 +211,7 @@ done
 ### Linux/macOS
 
 ```bash
-git clone <respoitory_url>
+git clone https://github.com/VampXDH/ipfinder.git
 cd ipfinder
 go build -o ipfinder cmd/ipfinder/main.go
 ./ipfinder -d 8.8.8.8
@@ -220,7 +220,7 @@ go build -o ipfinder cmd/ipfinder/main.go
 ### Windows
 
 ```bash
-git clone <respoitory_url>
+git clone https://github.com/VampXDH/ipfinder.git
 cd ipfinder
 go build -o ipfinder.exe cmd/ipfinder/main.go
 .\ipfinder.exe -d 8.8.8.8
@@ -269,7 +269,7 @@ ipfinder -d 8.8.8.8 -v
 - Default thread count (30) works well for most use cases
 - Increase thread count (`-t`) for faster scanning of large lists
 - Decrease thread count for unreliable network connections
-- Each source query includes a 1-3 second delay to avoid rate limiting
+- Each source query includes a 100-300ms delay to avoid rate limiting
 - HTTP client timeout is set to 120 seconds
 
 ## Limitations

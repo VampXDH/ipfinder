@@ -1,8 +1,8 @@
 package common
 
 import (
-	"fmt"
 	"math/rand"
+	"net"
 	"regexp"
 	"strings"
 	"time"
@@ -92,8 +92,10 @@ func NormalizeDomain(raw string) string {
 	}
 
 	raw = reProto.ReplaceAllString(raw, "")
-	raw = strings.Split(raw, "/")[0]
-	raw = strings.Split(raw, ":")[0]
+	parts := strings.Split(raw, "/")
+	raw = parts[0]
+	parts = strings.Split(raw, ":")
+	raw = parts[0]
 	raw = strings.TrimPrefix(raw, "www.")
 	raw = strings.ToLower(strings.TrimSpace(raw))
 
@@ -118,33 +120,9 @@ func UniqueStrings(slice []string) []string {
 }
 
 func IsValidIP(ip string) bool {
-	if ip == "" || strings.ContainsAny(ip, " \t\n") {
+	if ip == "" {
 		return false
 	}
-	if strings.Count(ip, ".") == 3 {
-		parts := strings.Split(ip, ".")
-		if len(parts) != 4 {
-			return false
-		}
-		for _, part := range parts {
-			if part == "" || len(part) > 3 {
-				return false
-			}
-			for _, c := range part {
-				if c < '0' || c > '9' {
-					return false
-				}
-			}
-			num := 0
-			fmt.Sscanf(part, "%d", &num)
-			if num < 0 || num > 255 {
-				return false
-			}
-		}
-		return true
-	}
-	if strings.Contains(ip, ":") {
-		return true
-	}
-	return false
+	parsed := net.ParseIP(ip)
+	return parsed != nil
 }
