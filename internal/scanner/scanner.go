@@ -41,6 +41,7 @@ func NewScanner(ctx context.Context, ipList []string, outputFile string, threads
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 10,
 				IdleConnTimeout:     90 * time.Second,
+				ForceAttemptHTTP2:   false,
 			},
 		},
 		log: &logger.Logger{
@@ -106,7 +107,7 @@ func (s *Scanner) Run() error {
 func (s *Scanner) processIP(ip string) {
 	s.log.Info("Processing: %s", ip)
 
-	ipDomains := 0
+	ipUniqueDomains := 0
 
 	for _, src := range s.sources {
 		select {
@@ -116,37 +117,45 @@ func (s *Scanner) processIP(ip string) {
 		default:
 		}
 
-		common.RandomSleep(1000, 3000)
+		common.RandomSleep(100, 300)
 
 		s.log.Verbosef("Querying %s with %s", ip, src.Name())
 
-		domains, err := src.Query(ip, s.client)
+		domains, err := src.Query(s.ctx, ip, s.client)
 		if err != nil {
 			s.log.Warning("%s error for %s: %v", src.Name(), ip, err)
 			continue
 		}
 
 		if len(domains) > 0 {
-			count := len(domains)
-			ipDomains += count
-
+			newCount := 0
 			for _, d := range domains {
-				err := s.writer.Write(d)
+				unique, err := s.writer.Write(d)
 				if err != nil {
 					s.log.Warning("Failed to write domain %s: %v", d, err)
+					continue
+				}
+				if unique {
+					newCount++
 				}
 			}
 
-			s.log.Success(src.Name(), ip, count)
+			ipUniqueDomains += newCount
+
+			if newCount > 0 {
+				s.log.Success(src.Name(), ip, newCount)
+			} else {
+				s.log.Verbosef("%s: %s - 0 new domains", src.Name(), ip)
+			}
 		} else {
 			s.log.Verbosef("%s: %s - 0 domains", src.Name(), ip)
 		}
 	}
 
-	if ipDomains > 0 {
-		s.log.Info("%s: Total %d domains", ip, ipDomains)
+	if ipUniqueDomains > 0 {
+		s.log.Info("%s: Found %d unique domains", ip, ipUniqueDomains)
 	} else {
-		s.log.Info("%s: No domains found", ip)
+		s.log.Info("%s: No new domains found", ip)
 	}
 }
 
