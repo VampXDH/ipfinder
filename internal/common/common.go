@@ -1,8 +1,8 @@
 package common
 
 import (
-	"fmt"
 	"math/rand"
+	"net"
 	"regexp"
 	"strings"
 	"time"
@@ -16,8 +16,6 @@ var (
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
-
-// ===================== USER AGENT CONFIG =====================
 
 var browsers = []string{
 	"Chrome",
@@ -53,8 +51,6 @@ var firefoxVersions = []string{
 	"108.0", "107.0", "106.0", "105.0", "104.0", "103.0",
 	"102.0", "101.0",
 }
-
-// ===================== HELPERS =====================
 
 func GetRandomUserAgent() string {
 	browser := browsers[rand.Intn(len(browsers))]
@@ -92,8 +88,10 @@ func NormalizeDomain(raw string) string {
 	}
 
 	raw = reProto.ReplaceAllString(raw, "")
-	raw = strings.Split(raw, "/")[0]
-	raw = strings.Split(raw, ":")[0]
+	parts := strings.Split(raw, "/")
+	raw = parts[0]
+	parts = strings.Split(raw, ":")
+	raw = parts[0]
 	raw = strings.TrimPrefix(raw, "www.")
 	raw = strings.ToLower(strings.TrimSpace(raw))
 
@@ -118,33 +116,9 @@ func UniqueStrings(slice []string) []string {
 }
 
 func IsValidIP(ip string) bool {
-	if ip == "" || strings.ContainsAny(ip, " \t\n") {
+	if ip == "" {
 		return false
 	}
-	if strings.Count(ip, ".") == 3 {
-		parts := strings.Split(ip, ".")
-		if len(parts) != 4 {
-			return false
-		}
-		for _, part := range parts {
-			if part == "" || len(part) > 3 {
-				return false
-			}
-			for _, c := range part {
-				if c < '0' || c > '9' {
-					return false
-				}
-			}
-			num := 0
-			fmt.Sscanf(part, "%d", &num)
-			if num < 0 || num > 255 {
-				return false
-			}
-		}
-		return true
-	}
-	if strings.Contains(ip, ":") {
-		return true
-	}
-	return false
+	parsed := net.ParseIP(ip)
+	return parsed != nil
 }
