@@ -2,6 +2,7 @@ package source
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,7 +18,7 @@ import (
 
 type Source interface {
 	Name() string
-	Query(ip string, client *http.Client) ([]string, error)
+	Query(ctx context.Context, ip string, client *http.Client) ([]string, error)
 }
 
 // ===================== RapidDNS =====================
@@ -26,9 +27,9 @@ type RapidDNS struct{}
 
 func (r RapidDNS) Name() string { return "rapiddns" }
 
-func (r RapidDNS) Query(ip string, client *http.Client) ([]string, error) {
+func (r RapidDNS) Query(ctx context.Context, ip string, client *http.Client) ([]string, error) {
 	url := fmt.Sprintf("https://rapiddns.io/sameip/%s?full=1#result", ip)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("User-Agent", common.GetRandomUserAgent())
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -68,9 +69,9 @@ type WebScan struct{}
 
 func (w WebScan) Name() string { return "webscan" }
 
-func (w WebScan) Query(ip string, client *http.Client) ([]string, error) {
+func (w WebScan) Query(ctx context.Context, ip string, client *http.Client) ([]string, error) {
 	url := fmt.Sprintf("https://api.webscan.cc/?action=query&ip=%s", ip)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("User-Agent", common.GetRandomUserAgent())
 	req.Header.Set("Accept", "application/json")
 
@@ -112,9 +113,9 @@ type TNTcode struct{}
 
 func (t TNTcode) Name() string { return "tntcode" }
 
-func (t TNTcode) Query(ip string, client *http.Client) ([]string, error) {
+func (t TNTcode) Query(ctx context.Context, ip string, client *http.Client) ([]string, error) {
 	url := fmt.Sprintf("https://domains.tntcode.com/ip/%s", ip)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("User-Agent", common.GetRandomUserAgent())
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
@@ -155,9 +156,9 @@ type NetworksDB struct{}
 
 func (n NetworksDB) Name() string { return "networksdb" }
 
-func (n NetworksDB) Query(ip string, client *http.Client) ([]string, error) {
+func (n NetworksDB) Query(ctx context.Context, ip string, client *http.Client) ([]string, error) {
 	url := fmt.Sprintf("https://networksdb.io/domains-on-ip/%s", ip)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("User-Agent", common.GetRandomUserAgent())
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
@@ -198,9 +199,9 @@ type Chaxunle struct{}
 
 func (c Chaxunle) Name() string { return "chaxunle" }
 
-func (c Chaxunle) Query(ip string, client *http.Client) ([]string, error) {
+func (c Chaxunle) Query(ctx context.Context, ip string, client *http.Client) ([]string, error) {
 	url := fmt.Sprintf("https://www.chaxunle.cn/ip/%s.html", ip)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("User-Agent", common.GetRandomUserAgent())
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -242,23 +243,21 @@ type THCOrg struct{}
 
 func (t THCOrg) Name() string { return "thc-org" }
 
-func (t THCOrg) Query(ip string, client *http.Client) ([]string, error) {
+func (t THCOrg) Query(ctx context.Context, ip string, client *http.Client) ([]string, error) {
 	baseURL := fmt.Sprintf("https://ip.thc.org/%s", ip)
 
 	var allDomains []string
 	nextPage := baseURL
 	pageCount := 0
 
-	timeout := time.After(60 * time.Second)
-
 	for nextPage != "" && pageCount < 20 {
 		select {
-		case <-timeout:
-			return common.UniqueStrings(allDomains), nil
+		case <-ctx.Done():
+			return common.UniqueStrings(allDomains), ctx.Err()
 		default:
 		}
 
-		req, err := http.NewRequest("GET", nextPage, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", nextPage, nil)
 		if err != nil {
 			return allDomains, err
 		}
@@ -281,7 +280,7 @@ func (t THCOrg) Query(ip string, client *http.Client) ([]string, error) {
 		nextPage = newNext
 		pageCount++
 
-		time.Sleep(1500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	return common.UniqueStrings(allDomains), nil
